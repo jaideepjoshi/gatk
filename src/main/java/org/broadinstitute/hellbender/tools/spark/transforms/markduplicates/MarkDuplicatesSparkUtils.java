@@ -4,12 +4,12 @@ import com.esotericsoftware.kryo.DefaultSerializer;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
 import com.google.common.collect.*;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.metrics.MetricsFile;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.broadinstitute.hellbender.engine.filters.ReadFilterLibrary;
 import org.broadinstitute.hellbender.exceptions.GATKException;
-import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.metrics.MetricsUtils;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.read.GATKRead;
@@ -90,7 +90,11 @@ public class MarkDuplicatesSparkUtils {
                                 PairedEnds.newFragment(read, header, readWithIndex.getIndex(), scoringStrategy);
 
                         out.add(new Tuple2<>(fragment.isEmpty() ?
-                                                     ReadsKey.hashKeyForFragment(header, read) :
+                                                     ReadsKey.hashKeyForFragment(
+                                                             ReadUtils.getStrandedUnclippedStart(read),
+                                                             read.isReverseStrand(),
+                                                             ReadUtils.getReferenceIndex(read, header),
+                                                             ReadUtils.getLibrary(read, header)) :
                                                      fragment.keyForFragment(header), fragment));
                     })
                     .filter(readWithIndex -> ReadUtils.readHasMappedMate(readWithIndex.getValue()))
@@ -131,23 +135,24 @@ public class MarkDuplicatesSparkUtils {
                 (index, iter) -> Utils.stream(iter).map(read -> new IndexPair<>(read, index)).iterator(), false);
         if (SAMFileHeader.SortOrder.queryname.equals(header.getSortOrder()) || SAMFileHeader.GroupOrder.query.equals(header.getGroupOrder()) ) {
             // reads are already grouped by name, so perform grouping within the partition (no shuffle)
-            keyedReads = spanReadsByKey(header, indexedReads);
+            keyedReads = spanReadsByKey(indexedReads);
         } else {
             // sort by group and name (incurs a shuffle)
-            JavaPairRDD<String, IndexPair<GATKRead>> keyReadPairs = indexedReads.mapToPair(read -> new Tuple2<>(ReadsKey.keyForRead(header, read.getValue()), read));
+            JavaPairRDD<String, IndexPair<GATKRead>> keyReadPairs = indexedReads.mapToPair(read -> new Tuple2<>(ReadsKey.keyForRead(
+                    read.getValue()), read));
             keyedReads = keyReadPairs.groupByKey(numReducers);
         }
         return keyedReads;
     }
 
-    static JavaPairRDD<String, Iterable<IndexPair<GATKRead>>> spanReadsByKey(final SAMFileHeader header, final JavaRDD<IndexPair<GATKRead>> reads) {
+    static JavaPairRDD<String, Iterable<IndexPair<GATKRead>>> spanReadsByKey(final JavaRDD<IndexPair<GATKRead>> reads) {
         JavaPairRDD<String, IndexPair<GATKRead>> nameReadPairs = reads.mapToPair(read -> new Tuple2<>(read.getValue().getName(), read));
         return spanByKey(nameReadPairs).flatMapToPair(namedRead -> {
             // for each name, separate reads by key (group name)
             List<Tuple2<String, Iterable<IndexPair<GATKRead>>>> out = Lists.newArrayList();
             ListMultimap<String, IndexPair<GATKRead>> multi = LinkedListMultimap.create();
             for (IndexPair<GATKRead> read : namedRead._2()) {
-                multi.put(ReadsKey.keyForRead(header, read.getValue()), read);
+                multi.put(ReadsKey.keyForRead(read.getValue()), read);
             }
             for (String key : multi.keySet()) {
                 // list from Multimap is not serializable by Kryo, so put in a new array list
@@ -219,12 +224,12 @@ public class MarkDuplicatesSparkUtils {
                     .collect(Collectors.groupingBy(PairedEnds::getUnclippedStartPosition)).values();
 
             for (List<PairedEnds> duplicateGroup : groups) {
-                final Map<PairedEndsType, List<PairedEnds>> stratifiedByType = splitByType(duplicateGroup);
+                final Map<PairedEnds.Type, List<PairedEnds>> stratifiedByType = splitByType(duplicateGroup);
 
                 // Each key corresponds to either fragments or paired ends, not a mixture of both.
-                final List<PairedEnds> fragments = stratifiedByType.get(PairedEndsType.FRAGMENT);
-                final List<PairedEnds> pairs = stratifiedByType.get(PairedEndsType.PAIR);
-                final List<PairedEnds> pairsMissingSecondRead = stratifiedByType.get(PairedEndsType.PAIRED_BUT_MISSING_SECOND_READ);
+                final List<PairedEnds> fragments = stratifiedByType.get(PairedEnds.Type.FRAGMENT);
+                final List<PairedEnds> pairs = stratifiedByType.get(PairedEnds.Type.PAIR);
+                final List<PairedEnds> pairsMissingSecondRead = stratifiedByType.get(PairedEnds.Type.PAIRED_BUT_MISSING_SECOND_READ);
 
                 if (fragments != null && !fragments.isEmpty()) { // fragments
                     final Tuple2<IndexPair<String>, Integer> bestFragment = handleFragments(fragments);
@@ -249,10 +254,10 @@ public class MarkDuplicatesSparkUtils {
     /**
      * split PairedEnds into groups by their type
      */
-    private static Map<PairedEndsType, List<PairedEnds>> splitByType(List<PairedEnds> duplicateGroup) {
-        final EnumMap<PairedEndsType, List<PairedEnds>> byType = new EnumMap<>(PairedEndsType.class);
+    private static Map<PairedEnds.Type, List<PairedEnds>> splitByType(List<PairedEnds> duplicateGroup) {
+        final EnumMap<PairedEnds.Type, List<PairedEnds>> byType = new EnumMap<>(PairedEnds.Type.class);
         for(PairedEnds pair: duplicateGroup) {
-            byType.compute(PairedEndsType.getType(pair), (key, value) -> {
+            byType.compute(pair.getType(), (key, value) -> {
                 if (value == null) {
                     final ArrayList<PairedEnds> pairedEnds = new ArrayList<>();
                     pairedEnds.add(pair);
@@ -271,20 +276,6 @@ public class MarkDuplicatesSparkUtils {
         return pairsMissingSecondRead.stream()
                 .map(pair -> new Tuple2<>(new IndexPair<>(pair.getName(), pair.getPartitionIndex()), -1))
                 .collect(Collectors.toList());
-    }
-
-    private enum PairedEndsType{
-        FRAGMENT, PAIR, PAIRED_BUT_MISSING_SECOND_READ;
-
-        static PairedEndsType getType(PairedEnds pair){
-            if(pair.isFragment()){
-                return FRAGMENT;
-            } else if (pair.hasSecondRead()) {
-                return PAIR;
-            } else {
-                return PAIRED_BUT_MISSING_SECOND_READ;
-            }
-        }
     }
 
     private static Tuple2<IndexPair<String>, Integer> handlePairs(List<PairedEnds> pairs, OpticalDuplicateFinder finder) {
