@@ -7,7 +7,10 @@ import com.esotericsoftware.kryo.io.Output;
 import com.google.common.annotations.VisibleForTesting;
 import htsjdk.samtools.SAMSequenceDictionary;
 import org.broadinstitute.hellbender.exceptions.GATKException;
-import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.*;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignedContig;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignmentInterval;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AssemblyContigWithFineTunedAlignments;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.StrandSwitch;
 import org.broadinstitute.hellbender.utils.IntervalUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -71,6 +74,17 @@ final class CpxVariantInducingAssemblyContig {
     private final BasicInfo basicInfo;
     private final List<Jump> jumps;
     private final List<SimpleInterval> eventPrimaryChromosomeSegmentingLocations;
+
+    @VisibleForTesting
+    CpxVariantInducingAssemblyContig(final AssemblyContigWithFineTunedAlignments contigWithFineTunedAlignments,
+                                     final BasicInfo basicInfo,
+                                     final List<Jump> jumps,
+                                     final List<SimpleInterval> eventPrimaryChromosomeSegmentingLocations) {
+        this.contigWithFineTunedAlignments = contigWithFineTunedAlignments;
+        this.basicInfo = basicInfo;
+        this.jumps = jumps;
+        this.eventPrimaryChromosomeSegmentingLocations = eventPrimaryChromosomeSegmentingLocations;
+    }
 
     /**
      * The process of initializing the fields is the processing of making sense of what happened:
@@ -192,7 +206,10 @@ final class CpxVariantInducingAssemblyContig {
         final int numSegmentingLocs = input.readInt();
         eventPrimaryChromosomeSegmentingLocations = new ArrayList<>(numJumps);
         for (int i = 0; i < numSegmentingLocs; ++i) {
-            eventPrimaryChromosomeSegmentingLocations.add(kryo.readObject(input, SimpleInterval.class));
+            String chr = input.readString();
+            int start = input.readInt();
+            int end = input.readInt();
+            eventPrimaryChromosomeSegmentingLocations.add( new SimpleInterval(chr, start, end));
         }
     }
 
@@ -206,8 +223,11 @@ final class CpxVariantInducingAssemblyContig {
             jumpSerializer.write(kryo, output, jump);
 
         output.writeInt(eventPrimaryChromosomeSegmentingLocations.size());
-        for (final SimpleInterval segmentingLoc : eventPrimaryChromosomeSegmentingLocations)
-            kryo.writeObject(output, segmentingLoc);
+        for (final SimpleInterval segmentingLoc : eventPrimaryChromosomeSegmentingLocations) {
+            output.writeString(segmentingLoc.getContig());
+            output.writeInt(segmentingLoc.getStart());
+            output.writeInt(segmentingLoc.getEnd());
+        }
     }
 
     public static final class Serializer extends com.esotericsoftware.kryo.Serializer<CpxVariantInducingAssemblyContig> {
@@ -254,6 +274,14 @@ final class CpxVariantInducingAssemblyContig {
         final SimpleInterval omega;         // length-1 interval for the ending   ref location of the tail/head alignment if the signaling assembly contig is a '+'/'-' representation
 
         @VisibleForTesting
+        BasicInfo(final String eventPrimaryChromosome, final boolean forwardStrandRep, final SimpleInterval alpha, final SimpleInterval omega) {
+            this.eventPrimaryChromosome = eventPrimaryChromosome;
+            this.forwardStrandRep = forwardStrandRep;
+            this.alpha = alpha;
+            this.omega = omega;
+        }
+
+        @VisibleForTesting
         BasicInfo(final AlignedContig contig) {
             final AlignmentInterval head = contig.getHeadAlignment();
             final AlignmentInterval tail = contig.getTailAlignment();
@@ -284,15 +312,25 @@ final class CpxVariantInducingAssemblyContig {
         BasicInfo(final Kryo kryo, final Input input) {
             eventPrimaryChromosome = input.readString();
             forwardStrandRep = input.readBoolean();
-            alpha = kryo.readObject(input, SimpleInterval.class);
-            omega = kryo.readObject(input, SimpleInterval.class);
+            String chr = input.readString();
+            int start = input.readInt();
+            int end = input.readInt();
+            alpha = new SimpleInterval(chr, start, end);
+            chr = input.readString();
+            start = input.readInt();
+            end = input.readInt();
+            omega = new SimpleInterval(chr, start, end);
         }
 
         void serialize(final Kryo kryo, final Output output) {
             output.writeString(eventPrimaryChromosome);
             output.writeBoolean(forwardStrandRep);
-            kryo.writeObject(output, alpha);
-            kryo.writeObject(output, omega);
+            output.writeString(alpha.getContig());
+            output.writeInt(alpha.getStart());
+            output.writeInt(alpha.getEnd());
+            output.writeString(omega.getContig());
+            output.writeInt(omega.getStart());
+            output.writeInt(omega.getEnd());
         }
 
         public static final class Serializer extends com.esotericsoftware.kryo.Serializer<BasicInfo> {
@@ -305,6 +343,28 @@ final class CpxVariantInducingAssemblyContig {
             public BasicInfo read(final Kryo kryo, final Input input, final Class<BasicInfo> clazz) {
                 return new BasicInfo(kryo, input);
             }
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            final BasicInfo basicInfo = (BasicInfo) o;
+
+            if (forwardStrandRep != basicInfo.forwardStrandRep) return false;
+            if (!eventPrimaryChromosome.equals(basicInfo.eventPrimaryChromosome)) return false;
+            if (!alpha.equals(basicInfo.alpha)) return false;
+            return omega.equals(basicInfo.omega);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = eventPrimaryChromosome.hashCode();
+            result = 31 * result + (forwardStrandRep ? 1 : 0);
+            result = 31 * result + alpha.hashCode();
+            result = 31 * result + omega.hashCode();
+            return result;
         }
     }
 
@@ -324,7 +384,7 @@ final class CpxVariantInducingAssemblyContig {
      * homology-yielding scheme.
      *
      * Here we DO NOT output jumps that are retracting: i.e. we enforce the homology-yielding convention as implemented in
-     * {@link ContigAlignmentsModifier#yieldHomologousSequenceToAlignmentTwo(AlignmentInterval, AlignmentInterval, SAMSequenceDictionary)}.
+     * {@link CpxVariantInterpreter#yieldOverlapToAlignmentTwo(AlignmentInterval, AlignmentInterval, SAMSequenceDictionary)}.
      *
      * </p>
      */
@@ -335,6 +395,14 @@ final class CpxVariantInducingAssemblyContig {
         final SimpleInterval landing;
         final StrandSwitch strandSwitch;
         final int gapSize; // jump is gapped when this size is > 0
+
+        @VisibleForTesting
+        Jump(final SimpleInterval start, final SimpleInterval landing, final StrandSwitch strandSwitch, final int gapSize) {
+            this.start = start;
+            this.landing = landing;
+            this.strandSwitch = strandSwitch;
+            this.gapSize = gapSize;
+        }
 
         @VisibleForTesting
         Jump(final AlignmentInterval one, final AlignmentInterval two) {
@@ -364,7 +432,7 @@ final class CpxVariantInducingAssemblyContig {
                 default: throw new NoSuchElementException("seeing a strand switch that doesn't make sense");
             }
 
-            gapSize = Math.max(0, two.startInAssembledContig - one.endInAssembledContig - 1);
+            gapSize = Math.max(0, two.startInAssembledContig - one.endInAssembledContig - 2); // -2 because we want bases in-between
         }
 
         boolean isGapped() {
@@ -378,15 +446,27 @@ final class CpxVariantInducingAssemblyContig {
         }
 
         private Jump(final Kryo kryo, final Input input) {
-            start = kryo.readObject(input, SimpleInterval.class);
-            landing = kryo.readObject(input, SimpleInterval.class);
+
+            String chr = input.readString();
+            int beg = input.readInt();
+            int end = input.readInt();
+            start = new SimpleInterval(chr, beg, end);
+            chr = input.readString();
+            beg = input.readInt();
+            end = input.readInt();
+            landing = new SimpleInterval(chr, beg, end);
+
             strandSwitch = StrandSwitch.values()[input.readInt()];
             gapSize = input.readInt();
         }
 
         public void serialize(final Kryo kryo, final Output output) {
-            kryo.writeObject(output, start);
-            kryo.writeObject(output, landing);
+            output.writeString(start.getContig());
+            output.writeInt(start.getStart());
+            output.writeInt(start.getEnd());
+            output.writeString(landing.getContig());
+            output.writeInt(landing.getStart());
+            output.writeInt(landing.getEnd());
             output.writeInt(strandSwitch.ordinal());
             output.writeInt(gapSize);
         }
@@ -401,6 +481,28 @@ final class CpxVariantInducingAssemblyContig {
             public Jump read(final Kryo kryo, final Input input, final Class<Jump> clazz) {
                 return new Jump(kryo, input);
             }
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            final Jump jump = (Jump) o;
+
+            if (gapSize != jump.gapSize) return false;
+            if (!start.equals(jump.start)) return false;
+            if (!landing.equals(jump.landing)) return false;
+            return strandSwitch == jump.strandSwitch;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = start.hashCode();
+            result = 31 * result + landing.hashCode();
+            result = 31 * result + strandSwitch.hashCode();
+            result = 31 * result + gapSize;
+            return result;
         }
     }
 }

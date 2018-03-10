@@ -2,20 +2,32 @@ package org.broadinstitute.hellbender.tools.spark.sv.discovery.inference;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.TextCigarCodec;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.apache.commons.collections4.IterableUtils;
+import org.apache.spark.broadcast.Broadcast;
 import org.broadinstitute.hellbender.GATKBaseTest;
+import org.broadinstitute.hellbender.engine.datasources.ReferenceMultiSource;
+import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.SVTestUtils;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.SimpleSVDiscoveryTestDataProvider;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignedContig;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignmentInterval;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AssemblyContigWithFineTunedAlignments;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.ContigAlignmentsModifier;
+import org.broadinstitute.hellbender.tools.spark.sv.utils.GATKSVVCFConstants;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
+import org.broadinstitute.hellbender.utils.test.VariantContextTestUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import scala.Tuple2;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class CpxVariantInterpreterUnitTest extends GATKBaseTest {
@@ -270,5 +282,29 @@ public class CpxVariantInterpreterUnitTest extends GATKBaseTest {
         final List<AlignmentInterval> result = CpxVariantInterpreter.deOverlapAlignments(alignments,
                 CpxSVInferenceTestUtils.bareBoneHg38SAMSeqDict);
         Assert.assertEquals(result, expectedResults);
+    }
+
+    // =================================================================================================================
+
+    @Test(groups = "sv")
+    public void testTurnIntoVariantContext() throws IOException {
+        final CpxVariantInducingAssemblyContig tig13846_3 = new CpxVariantInducingAssemblyContig(new AssemblyContigWithFineTunedAlignments(SVTestUtils.fromPrimarySAMRecordString("asm013846:tig00003\t0\tchr20\t54849615\t60\t192S49M2I55M1I50M1I246M\t*\t0\t0\tATATTTCTCAGAGGGTCTCTGGGGAGTTGATAGGCTTTGGATGTTTGCCTCCTCCAAATCTCATGTTGAAATGTAATCCCCAGTGTTGGAGGGGGGCAGATCCCTCATGAGTGGCTTGGTGCCCTTCCCATGGTAATGAGTGAGTTCTTGCTCTGTTAGTTCATGAGAGAGCTGATTGTTTAAAGGAGTCTGGCACCTCCTCTCTCTCCTTTCTTCCTCTCTCACCATGTGACACTCCTATCCCCCTTTGCCTTCTTGCCTGAGTAAAAGCTTCCTAAGGCCTCACCAGAAGCCGAGCAGATGCTGTTGCCATGCTTGTAGTCTGCAGAACCATAACCCAAATAAACCCAAGTTTTTATAAATTACCCAGCTTCAGGTATTCCTTGATAGCAACGCAAAATGGATTAACACCTAACCACAGGTGCCCACAGCTGGAACTTGCTCCTTGCCTTATGCTTTGTTGACATTTTTCCCTTCCCTGATTTGCTTTCTTCACTTTCCTCACTCTCTCATTGTGCTTCCTGGAATTATCTCCCAAATAATCAATCTGCACTTACATCCTTTTTATCTCAGGGTCTACTTTTGGAGATACCAAA\t*\tSA:Z:chr20,54849438,+,54M542H,60,0,54;chr15,68774173,+,92H63M441H,60,3,48;\tMD:Z:400\tRG:Z:GATKSVContigAlignments\tNM:i:4\tAS:i:348\tXS:i:0", true)), CpxSVInferenceTestUtils.bareBoneHg38SAMSeqDict);;
+        final CpxVariantInducingAssemblyContig tig28220_5 = new CpxVariantInducingAssemblyContig(new AssemblyContigWithFineTunedAlignments(SVTestUtils.fromPrimarySAMRecordString("asm028220:tig00005\t16\tchr20\t54849438\t60\t54M206S\t*\t0\t0\tATATTTCTCAGAGGGTCTCTGGGGAGTTGATAGGCTTTGGATGTTTGCCTCCTCCAAATCTCATGTTGAAATGTAATCCCCAGTGTTGGAGGGGGGCAGATCCCTCATGAGTGGCTTGGTGCCCTTCCCATGGTAATGAGTGAGTTCTTGCTCTGTTAGTTCATGAGAGAGCTGATTGTTTAAAGGAGTCTGGCACCTCCTCTCTCTCCTTTCTTCCTCTCTCACCATGTGACACTCCTATCCCCCTTTGCCTTCTTGCC\t*\tSA:Z:chr20,54849615,-,192H49M2I17M,60,2,52;chr15,68774173,-,92H63M105H,60,3,48;\tMD:Z:54\tRG:Z:GATKSVContigAlignments\tNM:i:0\tAS:i:54\tXS:i:0", true)), CpxSVInferenceTestUtils.bareBoneHg38SAMSeqDict);
+        final CpxVariantCanonicalRepresentation cpxVariantCanonicalRepresentation = new CpxVariantCanonicalRepresentation(tig13846_3);
+        final Tuple2<CpxVariantCanonicalRepresentation, Iterable<CpxVariantInducingAssemblyContig>> tuple2 =
+                new Tuple2<>(cpxVariantCanonicalRepresentation, Arrays.asList(tig13846_3, tig28220_5));
+        final Broadcast<ReferenceMultiSource> broadcast = SparkContextFactory.getTestSparkContext().broadcast(SimpleSVDiscoveryTestDataProvider.b38_reference);
+        final byte[] refBases = broadcast.getValue().getReferenceBases(new SimpleInterval("chr20", 54849491, 54849615)).getBases();
+
+        final VariantContextBuilder baseVariantContextBuilder = cpxVariantCanonicalRepresentation.toVariantContext(refBases);
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.TOTAL_MAPPINGS, 2);
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.CONTIG_NAMES, Arrays.asList(tig13846_3.getPreprocessedTig().getSourceContig().contigName, tig28220_5.getPreprocessedTig().getSourceContig().contigName));
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.MAPPING_QUALITIES, Arrays.asList("60", "60"));
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.HQ_MAPPINGS, "2");
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.ALIGN_LENGTHS, Arrays.asList("54", "54"));
+        baseVariantContextBuilder.attribute(GATKSVVCFConstants.MAX_ALIGN_LENGTH, "54");
+
+        final VariantContext variantContext = CpxVariantInterpreter.turnIntoVariantContext(tuple2, broadcast);
+        VariantContextTestUtils.assertVariantContextsAreEqual(variantContext, baseVariantContextBuilder.make(), Collections.emptyList());
     }
 }

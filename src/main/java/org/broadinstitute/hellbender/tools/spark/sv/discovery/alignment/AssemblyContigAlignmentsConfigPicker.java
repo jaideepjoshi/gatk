@@ -244,9 +244,9 @@ public class AssemblyContigAlignmentsConfigPicker {
      * @return a 2-D list, where in the case when multiple configurations are equally top-scored, all such configurations are picked up
      */
     @VisibleForTesting
-    static List<GoodAndBadMappings> pickBestConfigurations(final AlignedContig alignedContig,
-                                                           final Set<String> canonicalChromosomes,
-                                                           final Double scoreDiffTolerance) {
+    public static List<GoodAndBadMappings> pickBestConfigurations(final AlignedContig alignedContig,
+                                                                  final Set<String> canonicalChromosomes,
+                                                                  final Double scoreDiffTolerance) {
         // nothing to score if only one alignment
         if (alignedContig.alignmentIntervals.size() == 1) {
             return Collections.singletonList(
@@ -399,7 +399,7 @@ public class AssemblyContigAlignmentsConfigPicker {
      * @return The number of returned contigs will be the same as the given best-scored configurations.
      */
     @VisibleForTesting
-    static Iterator<AssemblyContigWithFineTunedAlignments> reConstructContigFromPickedConfiguration(
+    public static Iterator<AssemblyContigWithFineTunedAlignments> reConstructContigFromPickedConfiguration(
             final Tuple2<Tuple2<String, byte[]>, List<GoodAndBadMappings>> nameSeqAndBestConfigurationsOfOneAssemblyContig) {
 
         final String contigName = nameSeqAndBestConfigurationsOfOneAssemblyContig._1._1;

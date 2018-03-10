@@ -62,7 +62,7 @@ public final class CpxVariantInterpreter {
                 assemblyContigs
                         .map(tig -> furtherPreprocess(tig, referenceSequenceDictionaryBroadcast.getValue()))
                         .map(tig -> new CpxVariantInducingAssemblyContig(tig, referenceSequenceDictionaryBroadcast.getValue()))
-                        .mapToPair(tig -> new Tuple2<>(makeInterpretation(tig), tig))
+                        .mapToPair(tig -> new Tuple2<>(CpxVariantCanonicalRepresentation.makeInterpretation(tig), tig))
                         .groupByKey(); // two contigs could give the same variant
 
         if (svDiscoveryInputData.discoverStageArgs.outputCpxResultsInHumanReadableFormat) {
@@ -83,8 +83,9 @@ public final class CpxVariantInterpreter {
      *
      * @return the input contig with its alignments de-overlapped
      */
-    private static AssemblyContigWithFineTunedAlignments furtherPreprocess(final AssemblyContigWithFineTunedAlignments contigWithFineTunedAlignments,
-                                                                           final SAMSequenceDictionary refSequenceDictionary) {
+    @VisibleForTesting
+    static AssemblyContigWithFineTunedAlignments furtherPreprocess(final AssemblyContigWithFineTunedAlignments contigWithFineTunedAlignments,
+                                                                   final SAMSequenceDictionary refSequenceDictionary) {
         final AlignedContig sourceTig = contigWithFineTunedAlignments.getSourceContig();
 
         final List<AlignmentInterval> deOverlappedAlignmentConfiguration =
@@ -269,29 +270,35 @@ public final class CpxVariantInterpreter {
     // =================================================================================================================
 
     @VisibleForTesting
-    static CpxVariantCanonicalRepresentation makeInterpretation(final CpxVariantInducingAssemblyContig cpxVariantInducingAssemblyContig) {
-
-        if (cpxVariantInducingAssemblyContig.getEventPrimaryChromosomeSegmentingLocations().size() == 1) {
-            return new CpxVariantCanonicalRepresentation(
-                    cpxVariantInducingAssemblyContig.getPreprocessedTig(),
-                    cpxVariantInducingAssemblyContig.getBasicInfo(),
-                    cpxVariantInducingAssemblyContig.getPreprocessedTig().getSourceContig().alignmentIntervals,
-                    cpxVariantInducingAssemblyContig.getEventPrimaryChromosomeSegmentingLocations().get(0));
-        } else {
-            return new CpxVariantCanonicalRepresentation(cpxVariantInducingAssemblyContig);
-        }
-    }
-
-    @VisibleForTesting
     static VariantContext turnIntoVariantContext(final Tuple2<CpxVariantCanonicalRepresentation, Iterable<CpxVariantInducingAssemblyContig>> pair,
                                                  final Broadcast<ReferenceMultiSource> referenceBroadcast)
             throws IOException {
 
-        final VariantContextBuilder rawVariantContextBuilder = pair._1.toVariantContext(referenceBroadcast.getValue());
+        // TODO: 3/8/18 to-be-removed in final commit
+        /**
+         * REVIEW COMMENT:
+         * Are we sure we want the end to be equal to the start for these?
+         *
+         * CODE:
+         * final SimpleInterval pos = new SimpleInterval(affectedRefRegion.getContig(), affectedRefRegion.getStart(), affectedRefRegion.getStart());
+         * final byte[] refBases = referenceBroadcast.getValue().getReferenceBases(pos).getBases();
+         *
+         * REPLY:
+         * Not sure I understand the comment.
+         * the variable "pos" below is going to be the POS column of the VCF record,
+         * and several lines down below is where we populate the END INFO field.
+         *
+         * UPDATED REPLY:
+         * Yes, you are right. I should have been using the whole affected ref region, which is reflected below.
+         */
+        final CpxVariantCanonicalRepresentation cpxVariantCanonicalRepresentation = pair._1;
+        final byte[] refBases = referenceBroadcast.getValue().getReferenceBases(cpxVariantCanonicalRepresentation.getAffectedRefRegion()).getBases();
+
+        final VariantContextBuilder rawVariantContextBuilder = cpxVariantCanonicalRepresentation.toVariantContext(refBases);
         final Iterable<CpxVariantInducingAssemblyContig> evidenceContigs = pair._2;
 
         if (Utils.stream(evidenceContigs).anyMatch(evidenceContig -> evidenceContig.getPreprocessedTig().getSourceContig().alignmentIntervals.size()==0)) {
-            throw new GATKException("Some contigs were unmapped, yet seem to be used for inference.\n" + pair._1.toString() +
+            throw new GATKException("Some contigs were unmapped, yet seem to be used for inference.\n" + cpxVariantCanonicalRepresentation.toString() +
                     Utils.stream(evidenceContigs).map(tig->tig.getPreprocessedTig().getSourceContig().contigName).collect(Collectors.toList()));
         }
 

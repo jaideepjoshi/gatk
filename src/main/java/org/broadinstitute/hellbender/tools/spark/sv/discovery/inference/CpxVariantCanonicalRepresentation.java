@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableList;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.hellbender.engine.datasources.ReferenceMultiSource;
 import org.broadinstitute.hellbender.exceptions.GATKException;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.AnnotatedVariantProducer;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignmentInterval;
@@ -17,7 +16,6 @@ import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.Assembly
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import scala.Tuple2;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -100,6 +98,31 @@ final class CpxVariantCanonicalRepresentation {
     private final List<String> eventDescriptions;
     private final byte[] altSeq;
 
+    @VisibleForTesting
+    CpxVariantCanonicalRepresentation(final SimpleInterval affectedRefRegion,
+                                      final List<SimpleInterval> referenceSegments,
+                                      final List<String> eventDescriptions,
+                                      final byte[] altSeq) {
+        this.affectedRefRegion = affectedRefRegion;
+        this.referenceSegments = referenceSegments;
+        this.eventDescriptions = eventDescriptions;
+        this.altSeq = altSeq;
+    }
+
+    @VisibleForTesting
+    static CpxVariantCanonicalRepresentation makeInterpretation(final CpxVariantInducingAssemblyContig cpxVariantInducingAssemblyContig) {
+
+        if (cpxVariantInducingAssemblyContig.getEventPrimaryChromosomeSegmentingLocations().size() == 1) {
+            return new CpxVariantCanonicalRepresentation(
+                    cpxVariantInducingAssemblyContig.getPreprocessedTig(),
+                    cpxVariantInducingAssemblyContig.getBasicInfo(),
+                    cpxVariantInducingAssemblyContig.getJumps(),
+                    cpxVariantInducingAssemblyContig.getEventPrimaryChromosomeSegmentingLocations().get(0));
+        } else {
+            return new CpxVariantCanonicalRepresentation(cpxVariantInducingAssemblyContig);
+        }
+    }
+
     /**
      * This is a special case where a contig has all of the middle alignment(s) mapped to some disjoint places
      * (different chromosome, or same chromosome but not in the region returned by
@@ -110,8 +133,10 @@ final class CpxVariantCanonicalRepresentation {
      */
     CpxVariantCanonicalRepresentation(final AssemblyContigWithFineTunedAlignments preprocessedTig,
                                       final CpxVariantInducingAssemblyContig.BasicInfo basicInfo,
-                                      final List<AlignmentInterval> contigAlignments,
+                                      final List<CpxVariantInducingAssemblyContig.Jump> jumps,
                                       final SimpleInterval singleBase) {
+
+        final List<AlignmentInterval> contigAlignments = preprocessedTig.getSourceContig().alignmentIntervals;
 
         if ( singleBase.size() != 1)
             throw new CpxVariantInterpreter.UnhandledCaseSeen(
@@ -133,19 +158,21 @@ final class CpxVariantCanonicalRepresentation {
         affectedRefRegion = singleBase;
         referenceSegments = new ArrayList<>(Collections.singletonList(singleBase));
 
-        eventDescriptions =
-                contigAlignments
-                        .subList(1, contigAlignments.size() - 1).stream()
-                        .map(ai -> {
-                            if (basicInfo.forwardStrandRep)
-                                return ai.forwardStrand ? ai.referenceSpan.toString() : "-"+ai.referenceSpan.toString();
-                            else
-                                return ai.forwardStrand ? "-"+ai.referenceSpan.toString() : ai.referenceSpan.toString();
-                        })
-                        .collect(Collectors.toList());
+        eventDescriptions = new ArrayList<>(contigAlignments.size()); // init capacity is a guess'
+        eventDescriptions.add("1");
+        if (jumps.get(0).isGapped())
+            eventDescriptions.add(UNMAPPED_INSERTION + "-" + jumps.get(0).gapSize);
+        for (int i = 1 ; i < contigAlignments.size() - 1; ++i) { // don't use head/tail alignments here
 
-        // the single base overlap from head and tail
-        eventDescriptions.add(0, "1");
+            final AlignmentInterval ai = contigAlignments.get(i);
+            if (basicInfo.forwardStrandRep)
+                eventDescriptions.add( ai.forwardStrand ? ai.referenceSpan.toString() : "-" + ai.referenceSpan.toString() );
+            else
+                eventDescriptions.add( ai.forwardStrand ? "-"+ai.referenceSpan.toString() : ai.referenceSpan.toString() );
+
+            if (jumps.get(i).isGapped() )
+                eventDescriptions.add(UNMAPPED_INSERTION + "-" + jumps.get(i).gapSize);
+        }
         eventDescriptions.add("1");
 
         altSeq = extractAltHaplotypeSeq(preprocessedTig, referenceSegments, basicInfo);
@@ -166,7 +193,7 @@ final class CpxVariantCanonicalRepresentation {
 
         affectedRefRegion = getAffectedReferenceRegion(segmentingLocations);
         referenceSegments = extractRefSegments(basicInfo, segmentingLocations);
-        eventDescriptions = makeInterpretation(basicInfo, contigAlignments, jumps, referenceSegments);
+        eventDescriptions = extractAltArrangements(basicInfo, contigAlignments, jumps, referenceSegments);
 
         altSeq = extractAltHaplotypeSeq(cpxVariantInducingAssemblyContig.getPreprocessedTig(), referenceSegments, basicInfo);
     }
@@ -194,10 +221,10 @@ final class CpxVariantCanonicalRepresentation {
     }
 
     @VisibleForTesting
-    static List<String> makeInterpretation(final CpxVariantInducingAssemblyContig.BasicInfo basicInfo,
-                                           final List<AlignmentInterval> contigAlignments,
-                                           final List<CpxVariantInducingAssemblyContig.Jump> jumps,
-                                           final List<SimpleInterval> segments) {
+    static List<String> extractAltArrangements(final CpxVariantInducingAssemblyContig.BasicInfo basicInfo,
+                                               final List<AlignmentInterval> contigAlignments,
+                                               final List<CpxVariantInducingAssemblyContig.Jump> jumps,
+                                               final List<SimpleInterval> segments) {
 
         // using overlap with alignments ordered along the '+' strand representation of
         // the signaling contig to make sense of how the reference segments are ordered,
@@ -315,9 +342,11 @@ final class CpxVariantCanonicalRepresentation {
 
         if ( !firstSegment.overlaps(head.referenceSpan) ) {
             // if first segment doesn't overlap with head alignment,
-            // it must be the case that the base (and possibly following bases) immediately after (or before if reverse strand) the head alignment's ref span is deleted
+            // it must be one of two cases:
+            //   1) the base (and possibly following bases) immediately after (or before if reverse strand) the head alignment's ref span is deleted
+            //   2) there are bases on the read immediately after the head alignment uncovered by selected alignments, i.e. unmapped insertion
             final boolean firstSegmentNeighborsHeadAlignment = basicInfo.forwardStrandRep ? (firstSegment.getStart() - head.referenceSpan.getEnd() == 1)
-                    : (head.referenceSpan.getStart() - firstSegment.getEnd() == 1);
+                                                                                          : (head.referenceSpan.getStart() - firstSegment.getEnd() == 1);
             if ( ! firstSegmentNeighborsHeadAlignment )
                 throw new CpxVariantInterpreter.UnhandledCaseSeen("1st segment is not overlapping with head alignment but it is not immediately before/after the head alignment either\n"
                         + tigWithInsMappings.toString());
@@ -375,25 +404,13 @@ final class CpxVariantCanonicalRepresentation {
      * As suggested.
      */
     @VisibleForTesting
-    VariantContextBuilder toVariantContext(final ReferenceMultiSource reference) throws IOException {
+    VariantContextBuilder toVariantContext(final byte[] refBases) {
 
         final CpxVariantType cpxVariant = new CpxVariantType(affectedRefRegion, typeSpecificExtraAttributes());
 
-        // TODO: 3/8/18 to-be-removed in final commit
-        /**
-         * REVIEW COMMENT:
-         * Are we sure we want the end to be equal to the start for these?
-         *
-         * REPLY:
-         * Not sure I understand the comment.
-         * the variable "pos" below is going to be the POS column of the VCF record,
-         * and several lines down below is where we populate the END INFO field.
-         */
-        final SimpleInterval pos = new SimpleInterval(affectedRefRegion.getContig(), affectedRefRegion.getStart(), affectedRefRegion.getStart());
-
         final VariantContextBuilder vcBuilder = new VariantContextBuilder()
                 .chr(affectedRefRegion.getContig()).start(affectedRefRegion.getStart()).stop(affectedRefRegion.getEnd())
-                .alleles(AnnotatedVariantProducer.produceAlleles(pos, reference, cpxVariant))
+                .alleles(AnnotatedVariantProducer.produceAlleles(refBases, cpxVariant))
                 .id(cpxVariant.getInternalVariantId())
                 .attribute(SVTYPE, cpxVariant.toString())
                 .attribute(VCFConstants.END_KEY, affectedRefRegion.getEnd())
@@ -417,6 +434,9 @@ final class CpxVariantCanonicalRepresentation {
 
     // =================================================================================================================
 
+    SimpleInterval getAffectedRefRegion() {
+        return  affectedRefRegion;
+    }
     List<SimpleInterval> getReferenceSegments() {
         return referenceSegments;
     }
@@ -447,8 +467,12 @@ final class CpxVariantCanonicalRepresentation {
 
         final int numSegments = input.readInt();
         referenceSegments = new ArrayList<>(numSegments);
-        for (int i = 0; i < numSegments; ++i)
-            referenceSegments.add(kryo.readObject(input, SimpleInterval.class));
+        for (int i = 0; i < numSegments; ++i) {
+            final String chr = input.readString();
+            final int start = input.readInt();
+            final int end = input.readInt();
+            referenceSegments.add( new SimpleInterval(chr, start, end));
+        }
 
         final int numDescriptions = input.readInt();
         eventDescriptions = new ArrayList<>(numDescriptions);
@@ -465,8 +489,11 @@ final class CpxVariantCanonicalRepresentation {
         output.writeInt(affectedRefRegion.getEnd());
 
         output.writeInt(referenceSegments.size());
-        for (final SimpleInterval segment : referenceSegments)
-            kryo.writeObject(output, segment);
+        for (final SimpleInterval segment : referenceSegments){
+            output.writeString(segment.getContig());
+            output.writeInt(segment.getStart());
+            output.writeInt(segment.getEnd());
+        }
 
         output.writeInt(eventDescriptions.size());
         for (final String description: eventDescriptions)
