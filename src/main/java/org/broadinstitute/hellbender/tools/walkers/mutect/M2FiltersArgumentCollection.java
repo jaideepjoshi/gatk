@@ -101,6 +101,6 @@ public class M2FiltersArgumentCollection extends AssemblyBasedCallerArgumentColl
     @Argument(shortName = "", fullName = "", optional = true, doc = "")
     public double readOrientationFilterThreshold = 0.9;
 
-    @Argument(shortName = "", fullName = "", doc = "")
+    @Argument(shortName = "", fullName = "", optional = true, doc = "")
     public File hyperparameterTableForReadOrientationFilter = null;
 }

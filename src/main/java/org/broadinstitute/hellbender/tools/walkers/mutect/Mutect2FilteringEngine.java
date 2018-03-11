@@ -27,7 +27,6 @@ public class Mutect2FilteringEngine {
     private final double somaticPriorProb;
     private final String tumorSample;
     final OverlapDetector<MinorAlleleFractionRecord> tumorSegments;
-    final List<Hyperparameters> hyperparametersForReadOrientaitonModel;
     public static final String FILTERING_STATUS_VCF_KEY = "filtering_status";
 
     public Mutect2FilteringEngine(final M2FiltersArgumentCollection MTFAC, final String tumorSample) {
@@ -38,7 +37,6 @@ public class Mutect2FilteringEngine {
         final List<MinorAlleleFractionRecord> tumorMinorAlleleFractionRecords = MTFAC.tumorSegmentationTable == null ?
                 Collections.emptyList() : MinorAlleleFractionRecord.readFromFile(MTFAC.tumorSegmentationTable);
         tumorSegments = OverlapDetector.create(tumorMinorAlleleFractionRecords);
-        hyperparametersForReadOrientaitonModel = Hyperparameters.readHyperparameters(MTFAC.hyperparameterTableForReadOrientationFilter);
     }
 
     private void applyContaminationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final VariantContextBuilder vcb) {
