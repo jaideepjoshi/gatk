@@ -5,19 +5,14 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.contamination.ContaminationRecord;
 import org.broadinstitute.hellbender.tools.walkers.contamination.MinorAlleleFractionRecord;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.State;
 import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparameters;
 import org.broadinstitute.hellbender.utils.GATKProtectedVariantContextUtils;
 import org.broadinstitute.hellbender.utils.IndexRange;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
-import org.broadinstitute.hellbender.utils.Nucleotide;
-import org.broadinstitute.hellbender.utils.Utils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +27,7 @@ public class Mutect2FilteringEngine {
     private final double somaticPriorProb;
     private final String tumorSample;
     final OverlapDetector<MinorAlleleFractionRecord> tumorSegments;
+    final List<Hyperparameters> hyperparametersForReadOrientaitonModel;
     public static final String FILTERING_STATUS_VCF_KEY = "filtering_status";
 
     public Mutect2FilteringEngine(final M2FiltersArgumentCollection MTFAC, final String tumorSample) {
@@ -42,7 +38,7 @@ public class Mutect2FilteringEngine {
         final List<MinorAlleleFractionRecord> tumorMinorAlleleFractionRecords = MTFAC.tumorSegmentationTable == null ?
                 Collections.emptyList() : MinorAlleleFractionRecord.readFromFile(MTFAC.tumorSegmentationTable);
         tumorSegments = OverlapDetector.create(tumorMinorAlleleFractionRecords);
-        hyperparametersForReadOrientaitonModel = Hyperparameters.readHyperparameters(MTFAC.hyperparameterTable);
+        hyperparametersForReadOrientaitonModel = Hyperparameters.readHyperparameters(MTFAC.hyperparameterTableForReadOrientationFilter);
     }
 
     private void applyContaminationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final VariantContextBuilder vcb) {
@@ -263,7 +259,7 @@ public class Mutect2FilteringEngine {
     /***
      * This filter requires the INFO field annotation {@code REFERENCE_CONTEXT_KEY} and {@code F1R2_KEY}
      */
-    private void applyReadOrientationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters){
+    private void applyReadOrientationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final VariantContextBuilder vcb){
         final Genotype tumorGenotype = vc.getGenotype(tumorSample);
         if (! vc.isSNP()){
             return;
@@ -279,7 +275,7 @@ public class Mutect2FilteringEngine {
         final double probOfF2R1Artifact = posteriorProbabilities[ReadOrientationArtifact.INDEX_OF_F2R1_ARTIFACT];
 
         if (probOfF1R2Artifact > MTFAC.readOrientationFilterThreshold || probOfF2R1Artifact > MTFAC.readOrientationFilterThreshold){
-            filters.add(GATKVCFConstants.READ_ORIENTATION_FILTER_NAME);
+            vcb.filter(GATKVCFConstants.READ_ORIENTATION_FILTER_NAME);
         }
     }
 
