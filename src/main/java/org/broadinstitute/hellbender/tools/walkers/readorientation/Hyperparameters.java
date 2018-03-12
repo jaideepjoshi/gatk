@@ -195,8 +195,9 @@ public class Hyperparameters {
         public State getState() { return state; }
 
         public static List<HyperparameterTableColumn> getArtifactStateColumns(){
+            final List<HyperparameterTableColumn> nonArtifactColumns = Arrays.asList(CONTEXT, N, N_ALT);
             return Arrays.stream(HyperparameterTableColumn.values())
-                    .filter(column -> column != N && column != N_ALT)
+                    .filter(column -> ! nonArtifactColumns.contains(column))
                     .collect(Collectors.toList());
         }
 
