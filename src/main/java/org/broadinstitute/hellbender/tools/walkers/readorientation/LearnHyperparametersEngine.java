@@ -24,7 +24,7 @@ import static org.broadinstitute.hellbender.tools.walkers.readorientation.Collec
  * Created by tsato on 7/26/17.
  */
 public class LearnHyperparametersEngine {
-    public static final int NUM_STATES = ReadOrientationState.values().length;
+    public static final int NUM_STATES = ArtifactState.values().length;
 
     // When the increase in likelihood falls under this value, we call the algorithm converged
     private final double convergenceThreshold;
@@ -60,7 +60,7 @@ public class LearnHyperparametersEngine {
 
     final int numExamples;
 
-    final List<ReadOrientationState> impossibleStates;
+    final List<ArtifactState> impossibleStates;
 
     // K-dimensional vector of effective sample counts for each class of z, weighted by the the altResponsibilities. For a fixed k,
     // we sum up the counts over all alleles. N_k in the docs.
@@ -122,9 +122,9 @@ public class LearnHyperparametersEngine {
         // artifact only applies to alt sites (REWORD). We would remove those entries from the vector but it simplifies the
         // implementation (i.e. we can share the same indices for the states across all contexts) if we just set some
         // probabilities to 0
-        impossibleStates = ReadOrientationState.getImpossibleStates(refAllele);
+        impossibleStates = ArtifactState.getImpossibleStates(refAllele);
         Arrays.fill(pi, 1.0 / (NUM_STATES - impossibleStates.size()));
-        for (ReadOrientationState impossibleState : impossibleStates) {
+        for (ArtifactState impossibleState : impossibleStates) {
             pi[impossibleState.ordinal()] = 0;
         }
     }
@@ -241,9 +241,9 @@ public class LearnHyperparametersEngine {
                                                       final int altDepth, final int f1r2AltCount, final int depth,
                                                       final double[] pi) {
         final double[] log10UnnormalizedResponsibilities = new double[LearnHyperparametersEngine.NUM_STATES];
-        List<ReadOrientationState> impossibleStates = ReadOrientationState.getImpossibleStates(refAllele);
+        List<ArtifactState> impossibleStates = ArtifactState.getImpossibleStates(refAllele);
 
-        for (ReadOrientationState z : ReadOrientationState.values()){
+        for (ArtifactState z : ArtifactState.values()){
             final int k = z.ordinal();
             if (impossibleStates.contains(z)) {
                 // this state is impossible e.g. F1R2_G under context AGT and should get the normalized probability of 0
@@ -251,7 +251,7 @@ public class LearnHyperparametersEngine {
                 continue;
             }
 
-            if (ReadOrientationState.artifactStates.contains(z) && ReadOrientationState.getAltAlleleOfArtifact(z) != altAllele) {
+            if (ArtifactState.artifactStates.contains(z) && ArtifactState.getAltAlleleOfArtifact(z) != altAllele) {
                 // artifact states whose alt allele doesn't match up with the observed allele
                 log10UnnormalizedResponsibilities[k] = Double.NEGATIVE_INFINITY;
                 continue;
@@ -269,7 +269,7 @@ public class LearnHyperparametersEngine {
 
     // Compute the posterior probability of the state z given data. The caller is responsible for not calling
     // this method on inconsistent states e.g. z = F1R2_C where the reference context is ACT
-    public static double computePosterior(final ReadOrientationState z, final int altDepth, final int altF1R2Depth, final int depth,
+    public static double computePosterior(final ArtifactState z, final int altDepth, final int altF1R2Depth, final int depth,
                                           final double pi, final Pair<Double, Double> afPseudoCounts,
                                           final Pair<Double, Double> f1r2PseudoCounts){
         Utils.validateArg(MathUtils.isAProbability(pi), String.format("pi must be a probability but got %f", pi));
@@ -289,7 +289,7 @@ public class LearnHyperparametersEngine {
     // They are both beta binomial distributions and are therefore parameterized by the pseudocounts alpha and beta
     // ===========================
     private static List<Pair<Double, Double>> getPseudoCountsForAlleleFraction(){
-        final List<Pair<Double, Double>> alleleFractionPseudoCounts = new ArrayList<>(ReadOrientationState.values().length);
+        final List<Pair<Double, Double>> alleleFractionPseudoCounts = new ArrayList<>(ArtifactState.values().length);
         final double pseudoCountOfAltUnderArtifact = 1.0; // give it a flat prior and see what happens
         final double pseudoCountOfRefUnderArtifact = 25.0; // alpha = 1, beta = 10 gives a nice distribution that gives high prob to very low allele fractions
 
@@ -307,15 +307,15 @@ public class LearnHyperparametersEngine {
 
         // The allele fraction distribution, which is not aware of the read orientation, should be the same between
         // F1R2 and F2R1 artifacts
-        for (ReadOrientationState z : ReadOrientationState.getF1R2States()){
+        for (ArtifactState z : ArtifactState.getF1R2States()){
             alleleFractionPseudoCounts.add(z.ordinal(), new Pair<>(pseudoCountOfAltUnderArtifact, pseudoCountOfRefUnderArtifact));
         }
 
-        for (ReadOrientationState z : ReadOrientationState.getF2R1States()){
+        for (ArtifactState z : ArtifactState.getF2R1States()){
             alleleFractionPseudoCounts.add(z.ordinal(), new Pair<>(pseudoCountOfAltUnderArtifact, pseudoCountOfRefUnderArtifact));
         }
 
-        for (ReadOrientationState z : ReadOrientationState.getNonArtifactStates()){
+        for (ArtifactState z : ArtifactState.getNonArtifactStates()){
             switch (z) {
                 case HOM_REF:
                     alleleFractionPseudoCounts.add(z.ordinal(), new Pair<>(pseudoCountOfHomError, pseudoCountOfHomCorrect));
@@ -335,22 +335,22 @@ public class LearnHyperparametersEngine {
     }
 
     private static List<Pair<Double, Double>> getPseudoCountsForAltF1R2Fraction(){
-        final List<Pair<Double, Double>> altF1R2FractionPseudoCounts = new ArrayList<>(ReadOrientationState.values().length);
+        final List<Pair<Double, Double>> altF1R2FractionPseudoCounts = new ArrayList<>(ArtifactState.values().length);
 
         final double pseudoCountOfLikelyOutcome = 500.0;
         final double pseudoCountOfRareOutcome = 1.0;
         final double balancedPseudoCount = 50;
 
 
-        for (ReadOrientationState z : ReadOrientationState.getF1R2States()){
+        for (ArtifactState z : ArtifactState.getF1R2States()){
             altF1R2FractionPseudoCounts.add(z.ordinal(), new Pair<>(pseudoCountOfLikelyOutcome, pseudoCountOfRareOutcome));
         }
 
-        for (ReadOrientationState z : ReadOrientationState.getF2R1States()){
+        for (ArtifactState z : ArtifactState.getF2R1States()){
             altF1R2FractionPseudoCounts.add(z.ordinal(), new Pair<>(pseudoCountOfRareOutcome, pseudoCountOfLikelyOutcome));
         }
 
-        for (ReadOrientationState z : ReadOrientationState.getNonArtifactStates()){
+        for (ArtifactState z : ArtifactState.getNonArtifactStates()){
             altF1R2FractionPseudoCounts.add(z.ordinal(), new Pair<>(balancedPseudoCount, balancedPseudoCount));
 
         }
@@ -360,7 +360,7 @@ public class LearnHyperparametersEngine {
     /**
      * This enum encapsulates the domain of the discrete latent random variable z
      */
-    public enum ReadOrientationState {
+    public enum ArtifactState {
         // F1R2 artifact to a particular alt base. The F1R2_{ref} will be ignored (e.g. under the ref context AGT,
         // we ignore F1R2_G
         F1R2_A,
@@ -378,23 +378,23 @@ public class LearnHyperparametersEngine {
         SOMATIC_HET,
         HOM_VAR;
 
-        public static List<ReadOrientationState> getStates(){
-            return Arrays.stream(ReadOrientationState.values()).collect(Collectors.toList());
+        public static List<ArtifactState> getStates(){
+            return Arrays.stream(ArtifactState.values()).collect(Collectors.toList());
         }
 
-        static ReadOrientationState[] getF1R2States(){
-            return new ReadOrientationState[]{F1R2_A, F1R2_C, F1R2_G, F1R2_T};
+        static ArtifactState[] getF1R2States(){
+            return new ArtifactState[]{F1R2_A, F1R2_C, F1R2_G, F1R2_T};
         }
 
-        static ReadOrientationState[] getF2R1States(){
-            return new ReadOrientationState[]{F2R1_A, F2R1_C, F2R1_G, F2R1_T};
+        static ArtifactState[] getF2R1States(){
+            return new ArtifactState[]{F2R1_A, F2R1_C, F2R1_G, F2R1_T};
         }
 
-        public static List<ReadOrientationState> getNonArtifactStates(){
+        public static List<ArtifactState> getNonArtifactStates(){
             return Arrays.asList(HOM_REF, GERMLINE_HET, SOMATIC_HET, HOM_VAR);
         }
 
-        public static List<ReadOrientationState> getImpossibleStates(final Nucleotide refAllele){
+        public static List<ArtifactState> getImpossibleStates(final Nucleotide refAllele){
             switch (refAllele){
                 case A : return Arrays.asList( F1R2_A, F2R1_A );
                 case C : return Arrays.asList( F1R2_C, F2R1_C );
@@ -405,10 +405,10 @@ public class LearnHyperparametersEngine {
         }
 
         // Given a state z, return the alt allele of the artifact that the state encodes
-        public static Nucleotide getAltAlleleOfArtifact(final ReadOrientationState z){
-            Utils.validateArg(Arrays.asList(ReadOrientationState.F1R2_A, ReadOrientationState.F1R2_C, ReadOrientationState.F1R2_G, ReadOrientationState.F1R2_T,
-                    ReadOrientationState.F2R1_A, ReadOrientationState.F2R1_C, ReadOrientationState.F2R1_G, ReadOrientationState.F2R1_T).contains(z),
-                    String.format("ReadOrientationState must be F1R2_a or F2R1_a but got %s", z));
+        public static Nucleotide getAltAlleleOfArtifact(final ArtifactState z){
+            Utils.validateArg(Arrays.asList(ArtifactState.F1R2_A, ArtifactState.F1R2_C, ArtifactState.F1R2_G, ArtifactState.F1R2_T,
+                    ArtifactState.F2R1_A, ArtifactState.F2R1_C, ArtifactState.F2R1_G, ArtifactState.F2R1_T).contains(z),
+                    String.format("ArtifactState must be F1R2_a or F2R1_a but got %s", z));
             switch (z){
                 case F1R2_A : return Nucleotide.A;
                 case F1R2_C : return Nucleotide.C;
@@ -422,34 +422,34 @@ public class LearnHyperparametersEngine {
             }
         }
 
-        static List<ReadOrientationState> artifactStates = Arrays.asList(F1R2_A, F1R2_C, F1R2_G, F1R2_T, F2R1_A, F2R1_C, F2R1_G, F2R1_T);
+        static List<ArtifactState> artifactStates = Arrays.asList(F1R2_A, F1R2_C, F1R2_G, F1R2_T, F2R1_A, F2R1_C, F2R1_G, F2R1_T);
 
 
-        public static ReadOrientationState getF1R2StateOfInterest(final Nucleotide altAllele) {
+        public static ArtifactState getF1R2StateOfInterest(final Nucleotide altAllele) {
             switch (altAllele) {
                 case A:
-                    return ReadOrientationState.F1R2_A;
+                    return ArtifactState.F1R2_A;
                 case C:
-                    return ReadOrientationState.F1R2_C;
+                    return ArtifactState.F1R2_C;
                 case G:
-                    return ReadOrientationState.F1R2_G;
+                    return ArtifactState.F1R2_G;
                 case T:
-                    return ReadOrientationState.F1R2_T;
+                    return ArtifactState.F1R2_T;
                 default:
                     throw new UserException(String.format("Alt allele must be in {A, C, G, T} but got %s", altAllele));
             }
         }
 
-        public static ReadOrientationState getF2R1StateOfInterest(final Nucleotide altAllele) {
+        public static ArtifactState getF2R1StateOfInterest(final Nucleotide altAllele) {
             switch (altAllele) {
                 case A:
-                    return ReadOrientationState.F2R1_A;
+                    return ArtifactState.F2R1_A;
                 case C:
-                    return ReadOrientationState.F2R1_C;
+                    return ArtifactState.F2R1_C;
                 case G:
-                    return ReadOrientationState.F2R1_G;
+                    return ArtifactState.F2R1_G;
                 case T:
-                    return ReadOrientationState.F2R1_T;
+                    return ArtifactState.F2R1_T;
                 default:
                     throw new UserException(String.format("Alt allele must be in {A, C, G, T} but got %s", altAllele));
             }

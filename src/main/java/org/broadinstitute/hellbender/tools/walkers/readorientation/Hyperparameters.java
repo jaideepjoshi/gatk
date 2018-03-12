@@ -6,7 +6,7 @@ import org.broadinstitute.hellbender.utils.tsv.DataLine;
 import org.broadinstitute.hellbender.utils.tsv.TableColumnCollection;
 import org.broadinstitute.hellbender.utils.tsv.TableReader;
 import org.broadinstitute.hellbender.utils.tsv.TableWriter;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ReadOrientationState;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ArtifactState;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +34,7 @@ public class Hyperparameters {
         return pi;
     }
 
-    public double getPi(final ReadOrientationState state) {
+    public double getPi(final LearnHyperparametersEngine.ArtifactState state) {
         return pi[state.ordinal()];
     }
 
@@ -62,29 +62,29 @@ public class Hyperparameters {
             // four times for each context
             dataLine.set(HyperparameterTableColumn.CONTEXT.toString(), hps.getReferenceContext())
                     .set(HyperparameterTableColumn.F1R2_A.toString(),
-                            hps.getPi(LearnHyperparametersEngine.ReadOrientationState.F1R2_A))
+                            hps.getPi(ArtifactState.F1R2_A))
                     .set(HyperparameterTableColumn.F1R2_C.toString(),
-                            hps.getPi(ReadOrientationState.F1R2_C))
+                            hps.getPi(ArtifactState.F1R2_C))
                     .set(HyperparameterTableColumn.F1R2_G.toString(),
-                            hps.getPi(LearnHyperparametersEngine.ReadOrientationState.F1R2_G))
+                            hps.getPi(LearnHyperparametersEngine.ArtifactState.F1R2_G))
                     .set(HyperparameterTableColumn.F1R2_T.toString(),
-                            hps.getPi(ReadOrientationState.F1R2_T))
+                            hps.getPi(ArtifactState.F1R2_T))
                     .set(HyperparameterTableColumn.F2R1_A.toString(),
-                            hps.getPi(ReadOrientationState.F2R1_A))
+                            hps.getPi(LearnHyperparametersEngine.ArtifactState.F2R1_A))
                     .set(HyperparameterTableColumn.F2R1_C.toString(),
-                            hps.getPi(ReadOrientationState.F2R1_C))
+                            hps.getPi(ArtifactState.F2R1_C))
                     .set(HyperparameterTableColumn.F2R1_G.toString(),
-                            hps.getPi(LearnHyperparametersEngine.ReadOrientationState.F2R1_G))
+                            hps.getPi(ArtifactState.F2R1_G))
                     .set(HyperparameterTableColumn.F2R1_T.toString(),
-                            hps.getPi(ReadOrientationState.F2R1_T))
+                            hps.getPi(ArtifactState.F2R1_T))
                     .set(HyperparameterTableColumn.HOM_REF.toString(),
-                            hps.getPi(ReadOrientationState.HOM_REF))
+                            hps.getPi(ArtifactState.HOM_REF))
                     .set(HyperparameterTableColumn.GERMLINE_HET.toString(),
-                            hps.getPi(ReadOrientationState.GERMLINE_HET))
+                            hps.getPi(ArtifactState.GERMLINE_HET))
                     .set(HyperparameterTableColumn.SOMATIC_HET.toString(),
-                            hps.getPi(LearnHyperparametersEngine.ReadOrientationState.SOMATIC_HET))
+                            hps.getPi(ArtifactState.SOMATIC_HET))
                     .set(HyperparameterTableColumn.HOM_VAR.toString(),
-                            hps.getPi(ReadOrientationState.HOM_VAR))
+                            hps.getPi(LearnHyperparametersEngine.ArtifactState.HOM_VAR))
                     .set(HyperparameterTableColumn.N.toString(), hps.getNumExamples())
                     .set(HyperparameterTableColumn.N_ALT.toString(), hps.getNumAltExamples());
         }
@@ -146,7 +146,7 @@ public class Hyperparameters {
         @Override
         protected Hyperparameters createRecord(final DataLine dataLine) {
             final String referenceContext = dataLine.get(HyperparameterTableColumn.CONTEXT);
-            final double[] pi = new double[LearnHyperparametersEngine.ReadOrientationState.values().length];
+            final double[] pi = new double[ArtifactState.values().length];
             for (HyperparameterTableColumn column : HyperparameterTableColumn.getArtifactStateColumns()){
                 pi[column.getState().ordinal()] = Double.valueOf(dataLine.get(column));
             }
@@ -159,29 +159,29 @@ public class Hyperparameters {
 
     private enum HyperparameterTableColumn {
         CONTEXT("context"),
-        F1R2_A("f1r2_a", LearnHyperparametersEngine.ReadOrientationState.F1R2_A),
-        F1R2_C("f1r2_c", ReadOrientationState.F1R2_C),
-        F1R2_G("f1r2_g", LearnHyperparametersEngine.ReadOrientationState.F1R2_G),
-        F1R2_T("f1r2_t", ReadOrientationState.F1R2_T),
-        F2R1_A("f2r1_a", LearnHyperparametersEngine.ReadOrientationState.F2R1_A),
-        F2R1_C("f2r1_c", ReadOrientationState.F2R1_C),
-        F2R1_G("f2r1_g", ReadOrientationState.F2R1_G),
-        F2R1_T("f2r1_t", ReadOrientationState.F2R1_T),
-        HOM_REF("hom_ref", ReadOrientationState.HOM_REF),
-        GERMLINE_HET("germline_het", ReadOrientationState.GERMLINE_HET),
-        SOMATIC_HET("somatic_het", LearnHyperparametersEngine.ReadOrientationState.SOMATIC_HET),
-        HOM_VAR("hom_var", ReadOrientationState.HOM_VAR),
+        F1R2_A("f1r2_a", ArtifactState.F1R2_A),
+        F1R2_C("f1r2_c", ArtifactState.F1R2_C),
+        F1R2_G("f1r2_g", ArtifactState.F1R2_G),
+        F1R2_T("f1r2_t", ArtifactState.F1R2_T),
+        F2R1_A("f2r1_a", ArtifactState.F2R1_A),
+        F2R1_C("f2r1_c", ArtifactState.F2R1_C),
+        F2R1_G("f2r1_g", ArtifactState.F2R1_G),
+        F2R1_T("f2r1_t", ArtifactState.F2R1_T),
+        HOM_REF("hom_ref", ArtifactState.HOM_REF),
+        GERMLINE_HET("germline_het", ArtifactState.GERMLINE_HET),
+        SOMATIC_HET("somatic_het", ArtifactState.SOMATIC_HET),
+        HOM_VAR("hom_var", LearnHyperparametersEngine.ArtifactState.HOM_VAR),
         N("num_examples"),
         N_ALT("num_alt_examples");
 
         private String columnName;
-        private ReadOrientationState state;
+        private LearnHyperparametersEngine.ArtifactState state;
 
         HyperparameterTableColumn(final String columnName) {
             this.columnName = columnName;
         }
 
-        HyperparameterTableColumn(final String columnName, final LearnHyperparametersEngine.ReadOrientationState state) {
+        HyperparameterTableColumn(final String columnName, final ArtifactState state) {
             this.columnName = columnName;
             this.state = state;
         }
@@ -192,7 +192,7 @@ public class Hyperparameters {
         }
 
         // If used on N or N_ALT, this method will return null
-        public LearnHyperparametersEngine.ReadOrientationState getState() { return state; }
+        public ArtifactState getState() { return state; }
 
         public static List<HyperparameterTableColumn> getArtifactStateColumns(){
             final List<HyperparameterTableColumn> nonArtifactColumns = Arrays.asList(CONTEXT, N, N_ALT);

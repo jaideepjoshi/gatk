@@ -7,7 +7,7 @@ import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ReadOrientationState;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ArtifactState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,12 +62,12 @@ public class LearnHyperparametersEngineUnitTest {
                 LearnHyperparameters.DEFAULT_CONVERGENCE_THRESHOLD, LearnHyperparameters.DEFAULT_MAX_ITERATIONS, logger);
         Hyperparameters hyperparameters = engine.runEMAlgorithm();
 
-        Assert.assertEquals(engine.effectiveCounts[LearnHyperparametersEngine.ReadOrientationState.F1R2_T.ordinal()], (double) NUM_F1R2_EXAMPLES, EPSILON);
-        Assert.assertEquals(engine.effectiveCounts[ReadOrientationState.HOM_REF.ordinal()], (double) NUM_EXAMPLES - NUM_ALT_EXAMPLES, EPSILON);
+        Assert.assertEquals(engine.effectiveCounts[ArtifactState.F1R2_T.ordinal()], (double) NUM_F1R2_EXAMPLES, EPSILON);
+        Assert.assertEquals(engine.effectiveCounts[ArtifactState.HOM_REF.ordinal()], (double) NUM_EXAMPLES - NUM_ALT_EXAMPLES, EPSILON);
 
         // check pi
-        Assert.assertEquals(hyperparameters.getPi()[ReadOrientationState.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
-        Assert.assertEquals(hyperparameters.getPi()[LearnHyperparametersEngine.ReadOrientationState.HOM_REF.ordinal()], 1.0 - (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
+        Assert.assertEquals(hyperparameters.getPi()[LearnHyperparametersEngine.ArtifactState.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
+        Assert.assertEquals(hyperparameters.getPi()[LearnHyperparametersEngine.ArtifactState.HOM_REF.ordinal()], 1.0 - (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
     }
 
 
@@ -123,17 +123,17 @@ public class LearnHyperparametersEngineUnitTest {
                 LearnHyperparameters.DEFAULT_CONVERGENCE_THRESHOLD, LearnHyperparameters.DEFAULT_MAX_ITERATIONS, logger);
         Hyperparameters hyperparameters = engine.runEMAlgorithm();
 
-        Assert.assertEquals(engine.effectiveCounts[ReadOrientationState.F1R2_T.ordinal()], (double) numAltExamples, epsilon);
-        Assert.assertEquals(engine.effectiveCounts[ReadOrientationState.F2R1_A.ordinal()], (double) numAltExamples, epsilon);
-        Assert.assertEquals(engine.effectiveCounts[LearnHyperparametersEngine.ReadOrientationState.SOMATIC_HET.ordinal()], (double) numAltExamples, epsilon);
+        Assert.assertEquals(engine.effectiveCounts[LearnHyperparametersEngine.ArtifactState.F1R2_T.ordinal()], (double) numAltExamples, epsilon);
+        Assert.assertEquals(engine.effectiveCounts[ArtifactState.F2R1_A.ordinal()], (double) numAltExamples, epsilon);
+        Assert.assertEquals(engine.effectiveCounts[ArtifactState.SOMATIC_HET.ordinal()], (double) numAltExamples, epsilon);
 
         // test pi
-        Assert.assertEquals(hyperparameters.getPi()[ReadOrientationState.F1R2_T.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
-        Assert.assertEquals(hyperparameters.getPi()[ReadOrientationState.F2R1_A.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
-        Assert.assertEquals(hyperparameters.getPi()[ReadOrientationState.SOMATIC_HET.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
+        Assert.assertEquals(hyperparameters.getPi()[ArtifactState.F1R2_T.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
+        Assert.assertEquals(hyperparameters.getPi()[ArtifactState.F2R1_A.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
+        Assert.assertEquals(hyperparameters.getPi()[ArtifactState.SOMATIC_HET.ordinal()], (double) numAltExamples/numExamplesPerAllele, 1e-3);
 
         // impossible states get 0 probability
-        for (ReadOrientationState z : ReadOrientationState.getImpossibleStates(Nucleotide.G)){
+        for (ArtifactState z : ArtifactState.getImpossibleStates(Nucleotide.G)){
             Assert.assertEquals(hyperparameters.getPi()[z.ordinal()], 0.0);
         }
 

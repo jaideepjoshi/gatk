@@ -9,7 +9,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparameters;
 import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ReadOrientationState;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ArtifactState;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -157,13 +157,13 @@ public class ReadOrientationArtifact extends GenotypeAnnotation implements Stand
                 refAllele, altAllele, altDepth, f1r2AltCount, depth, pi);
 
         // we want the posterior of artifacts given that the site is not hom ref
-        log10UnnormalizedPosteriorProbabilities[LearnHyperparametersEngine.ReadOrientationState.HOM_REF.ordinal()] = Double.NEGATIVE_INFINITY;
+        log10UnnormalizedPosteriorProbabilities[LearnHyperparametersEngine.ArtifactState.HOM_REF.ordinal()] = Double.NEGATIVE_INFINITY;
 
         final double[] posteriorProbabilities = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedPosteriorProbabilities);
 
         final double[] posteriorProbabilitiesOfArtifact = new double[2];
-        posteriorProbabilitiesOfArtifact[INDEX_OF_F1R2_ARTIFACT] = posteriorProbabilities[ReadOrientationState.getF1R2StateOfInterest(altAllele).ordinal()];
-        posteriorProbabilitiesOfArtifact[INDEX_OF_F2R1_ARTIFACT] = posteriorProbabilities[ReadOrientationState.getF2R1StateOfInterest(altAllele).ordinal()];
+        posteriorProbabilitiesOfArtifact[INDEX_OF_F1R2_ARTIFACT] = posteriorProbabilities[ArtifactState.getF1R2StateOfInterest(altAllele).ordinal()];
+        posteriorProbabilitiesOfArtifact[INDEX_OF_F2R1_ARTIFACT] = posteriorProbabilities[ArtifactState.getF2R1StateOfInterest(altAllele).ordinal()];
 
         // TODO: change to one key saying F1R2, and the other probability
         gb.attribute(GATKVCFConstants.READ_ORIENTATION_POSTERIOR_KEY, posteriorProbabilitiesOfArtifact);
