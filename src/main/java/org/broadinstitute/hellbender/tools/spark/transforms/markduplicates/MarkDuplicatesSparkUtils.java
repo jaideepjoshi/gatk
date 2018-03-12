@@ -500,7 +500,7 @@ public class MarkDuplicatesSparkUtils {
 
             //This is done to mimic SAMRecordCoordinateComparator's behavior
             if (first.isR1R() != second.isR1R()) {
-                return first.isR1R() ? 1: -1;
+                return first.isR1R() ? -1: 1;
             }
 
             if ( first.getName() != null && second.getName() != null ) {
