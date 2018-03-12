@@ -16,7 +16,7 @@ import org.broadinstitute.hellbender.utils.io.IOUtils;
 import org.broadinstitute.hellbender.utils.read.ArtificialReadUtils;
 import org.broadinstitute.hellbender.utils.read.GATKRead;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.State;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.LearnHyperparametersEngine.ReadOrientationState;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -24,9 +24,6 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
-
-import static org.testng.Assert.*;
 
 /**
  * Created by tsato on 10/23/17.
@@ -78,19 +75,19 @@ public class ReadOrientationArtifactUnitTest extends GATKBaseTest {
 
         // The prior distribution of the states predicts that most of the time a site is hom ref, and the remaining
         // probability mass is distributed equally among the remaining states
-        double[] pi = new double[State.values().length];
+        double[] pi = new double[ReadOrientationState.values().length];
         double delta = 1e-4;
-        pi[State.HOM_REF.ordinal()] = 1 - delta;
+        pi[ReadOrientationState.HOM_REF.ordinal()] = 1 - delta;
 
         // The artifact states compete against the germeline het and somatic het state
         int numRestOfStates = 7;
-        pi[State.HOM_VAR.ordinal()] = delta/numRestOfStates;
-        pi[State.GERMLINE_HET.ordinal()] = delta/numRestOfStates;
-        pi[State.SOMATIC_HET.ordinal()] = delta/numRestOfStates;
-        pi[State.F1R2_A.ordinal()] = delta/numRestOfStates;
-        pi[State.F2R1_A.ordinal()] = delta/numRestOfStates;
-        pi[State.F1R2_G.ordinal()] = delta/numRestOfStates;
-        pi[State.F2R1_G.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.HOM_VAR.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.GERMLINE_HET.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.SOMATIC_HET.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.F1R2_A.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.F2R1_A.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.F1R2_G.ordinal()] = delta/numRestOfStates;
+        pi[ReadOrientationState.F2R1_G.ordinal()] = delta/numRestOfStates;
 
         Utils.validate(Math.abs(MathUtils.sum(pi) - 1) < 1e-5, "pi must add up to 1 but got " + MathUtils.sum(pi));
 
