@@ -86,14 +86,13 @@ public class MarkDuplicatesSparkUtils {
                     .peek(readWithIndex -> {
                         final GATKRead read = readWithIndex.getValue();
                         PairedEnds fragment = (ReadUtils.readHasMappedMate(read)) ?
-                                PairedEnds.empty(read, readWithIndex.getIndex()) :
+                                PairedEnds.empty(read, header, readWithIndex.getIndex()) :
                                 PairedEnds.newFragment(read, header, readWithIndex.getIndex(), scoringStrategy);
 
                         out.add(new Tuple2<>(fragment.isEmpty() ?
-                                                     ReadsKey.hashKeyForFragment(
-                                                             ReadUtils.getStrandedUnclippedStart(read),
-                                                             read.isReverseStrand(),
-                                                             ReadUtils.getReferenceIndex(read, header),
+                                                     ReadsKey.hashKeyForFragment(fragment.getUnclippedStartPosition(),
+                                                             fragment.isR1R(),
+                                                             fragment.getFirstRefIndex(),
                                                              ReadUtils.getLibrary(read, header)) :
                                                      fragment.keyForFragment(header), fragment));
                     })

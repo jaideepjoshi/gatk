@@ -9,7 +9,7 @@ import org.broadinstitute.hellbender.utils.read.ReadUtils;
  * Struct-like class to store information about the paired reads for mark duplicates.
  */
 public class PairedEnds implements OpticalDuplicateFinder.PhysicalLocation {
-  private int firstStartPosition;
+  private final int firstStartPosition;
   private transient GATKRead first;
   private transient GATKRead second;
 
@@ -19,8 +19,10 @@ public class PairedEnds implements OpticalDuplicateFinder.PhysicalLocation {
   private transient short x = -1;
   private transient short y = -1;
   private transient short libraryId = -1;
+
+
   private final boolean fragment;
-  private int score;
+  private final int score;
 
   private final String name;
 
@@ -58,17 +60,19 @@ public class PairedEnds implements OpticalDuplicateFinder.PhysicalLocation {
    * this only includes the necessary data to locate the read, the rest is unnecessary because it will appear in the paired bucket
    *
    */
-  private PairedEnds(GATKRead read, int partitionIndex) {
+  private PairedEnds(GATKRead read, SAMFileHeader header, int partitionIndex) {
     this.firstUnclippedStartPosition = ReadUtils.getStrandedUnclippedStart(read);
     this.secondUnclippedStartPosition = -1;
     this.first = read;
     this.partitionIndex = partitionIndex;
     this.fragment = true;
-    this.firstRefIndex = -1;
+    this.firstRefIndex = (short)ReadUtils.getReferenceIndex(first, header);
     this.secondRefIndex = -1;
     this.name = null;
-    this.R1R = false;
+    this.R1R = read.isReverseStrand();
     this.R2R = false;
+    this.score = 0;
+    this.firstStartPosition = firstUnclippedStartPosition;
   }
 
   public static PairedEnds newFragment(final GATKRead first, final SAMFileHeader header, int partitionIndex, MarkDuplicatesScoringStrategy scoringStrategy) {
@@ -81,8 +85,8 @@ public class PairedEnds implements OpticalDuplicateFinder.PhysicalLocation {
   }
 
   // An optimization for passing around empty read information
-  public static PairedEnds empty(GATKRead read, int partitionIndex) {
-    return new PairedEnds(read, partitionIndex);
+  public static PairedEnds empty(GATKRead read, SAMFileHeader header, int partitionIndex) {
+    return new PairedEnds(read, header, partitionIndex);
   }
 
 
