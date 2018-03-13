@@ -1,18 +1,18 @@
 package org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment;
 
 import com.google.common.annotations.VisibleForTesting;
-import htsjdk.samtools.*;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.hellbender.exceptions.GATKException;
-import org.broadinstitute.hellbender.tools.spark.sv.discovery.inference.AssemblyContigAlignmentSignatureClassifier;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.SvCigarUtils;
-import org.broadinstitute.hellbender.utils.IntervalUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import scala.Tuple2;
 import scala.Tuple3;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -134,7 +134,7 @@ public final class ContigAlignmentsModifier {
                         messageWhenErred);
             }
 
-            refBasesConsumed += secondOp.getLength();
+            refBasesConsumed += secondOp.getOperator().consumesReferenceBases() ? secondOp.getLength() : 0;
             if (secondOp.getOperator().equals(CigarOperator.D)) {
                 newMiddleSection.remove( 1 );
             } else {

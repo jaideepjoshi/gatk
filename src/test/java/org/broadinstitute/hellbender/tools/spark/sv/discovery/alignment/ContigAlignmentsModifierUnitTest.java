@@ -313,7 +313,7 @@ public class ContigAlignmentsModifierUnitTest extends GATKBaseTest {
         alignment = new AlignmentInterval(originalRefSpan,
                 1, 1334, TextCigarCodec.decode("1190M4D53M2I26M2I31M2I28M1422S"),
                 true, 60, 13, 1239, ContigAlignmentsModifier.AlnModType.NONE);
-        refSpan = new SimpleInterval("chr2", 128791173, 128792476);
+        refSpan = new SimpleInterval("chr2", 128791173, 128792478);
         data.add(new Object[]{alignment, 28, true, refSpan, TextCigarCodec.decode("1190M4D53M2I26M2I31M1452S")});
 
         alignment = new AlignmentInterval(originalRefSpan,
@@ -325,8 +325,13 @@ public class ContigAlignmentsModifierUnitTest extends GATKBaseTest {
         alignment = new AlignmentInterval(originalRefSpan,
                 1, 1334, TextCigarCodec.decode("1190M4I53M2I26M2I31M2I28M1422S"),
                 true, 60, 13, 1239, ContigAlignmentsModifier.AlnModType.NONE);
-        refSpan = new SimpleInterval("chr2", 128792367, 128792506);
+        refSpan = new SimpleInterval("chr2", 128792363, 128792506);
         data.add(new Object[]{alignment, 1190, false, refSpan, TextCigarCodec.decode("1194S53M2I26M2I31M2I28M1422S")});
+
+        alignment = new AlignmentInterval(new SimpleInterval("chr20", 38653045, 38653268),
+                1783, 2053, TextCigarCodec.decode("1782S89M44I106M3I29M1431S"),
+                false, 60, 59, 85, ContigAlignmentsModifier.AlnModType.NONE);
+        data.add(new Object[]{alignment, 89, false, new SimpleInterval("chr20", 38653045, 38653179), TextCigarCodec.decode("1915S106M3I29M1431S")});
 
         return data.toArray(new Object[data.size()][]);
     }
