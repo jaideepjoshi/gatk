@@ -221,7 +221,7 @@ public class MarkDuplicatesSparkUtils {
             //since we grouped by a non-unique hash code for efficiency we need to regroup by the actual criteria
             //todo this should use library and contig as well probably
             final Collection<List<PairedEnds>> groups = Utils.stream(pairedEnds)
-                    .collect(Collectors.groupingBy(PairedEnds::getUnclippedStartPosition)).values();
+                    .collect(Collectors.groupingBy(pe -> pe.getUnclippedStartPosition() << 8 | pe.getFirstRefIndex())).values();
 
             for (List<PairedEnds> duplicateGroup : groups) {
                 final Map<PairedEnds.Type, List<PairedEnds>> stratifiedByType = splitByType(duplicateGroup);
