@@ -329,9 +329,16 @@ public class PairedEnds implements OpticalDuplicateFinder.PhysicalLocation {
     firstStartPosition = input.readInt();
     firstUnclippedStartPosition = input.readInt();
     firstRefIndex = input.readShort();
+    R1R = input.readBoolean();
 
     if(!isFragment()){
-
+           secondUnclippedStartPosition = input.readInt();
+           secondRefIndex = input.readShort();
+           R2R = input.readBoolean();
+    } else {
+        secondUnclippedStartPosition = -1;
+        secondRefIndex = -1;
+        R2R = false;
     }
   }
 
