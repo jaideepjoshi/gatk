@@ -64,11 +64,11 @@ public class ReadOrientationArtifactUnitTest extends GATKBaseTest {
     public void test(final int depth, final double alleleFraction, final double altF1R2Fraction,
                      final double expectedF1R2Prob, final double expectedF2R1Prob, final double epsilon) throws IOException {
         // Why is it that the annotations get larger window than the walker (CollectData?)
-        final ReferenceContext ref = new ReferenceContext(new ReferenceFileSource(IOUtils.getPath(hg19_chr1_1M_Reference)),
+        final ReferenceContext reference = new ReferenceContext(new ReferenceFileSource(IOUtils.getPath(hg19_chr1_1M_Reference)),
                 new SimpleInterval("1", variantSite-5, variantSite+5));
         final int numBasesOnEachSide = 1;
-        String reference3mer = ReferenceContext.extractKmer(variantSite, ref, numBasesOnEachSide);
-        final Allele refAllele = Allele.create(reference3mer.substring(numBasesOnEachSide, numBasesOnEachSide+1), true);
+        final String refContext = ReferenceContext.extractKmer(variantSite, reference, numBasesOnEachSide);
+        final Allele refAllele = Allele.create(refContext.substring(numBasesOnEachSide, numBasesOnEachSide+1), true);
         final Allele altAllele = Allele.create((byte) 'A', false); // C -> A transition
         final List<Allele> alleles = Arrays.asList(refAllele, altAllele);
         final VariantContext vc = new VariantContextBuilder("source", Integer.toString(chromosomeIndex), variantSite, variantSite, alleles)
@@ -96,7 +96,7 @@ public class ReadOrientationArtifactUnitTest extends GATKBaseTest {
         int numRefExamples = 1_000_000;
         int numAltExamples = 1000;
 
-        final List<Hyperparameters> hyps = Collections.singletonList(new Hyperparameters(reference3mer, pi, numRefExamples, numAltExamples));
+        final List<Hyperparameters> hyps = Collections.singletonList(new Hyperparameters(refContext, pi, numRefExamples, numAltExamples));
         final File table = File.createTempFile("hyperparameters", "table");
         Hyperparameters.writeHyperparameters(hyps, table);
 
@@ -107,7 +107,7 @@ public class ReadOrientationArtifactUnitTest extends GATKBaseTest {
         final ReadLikelihoods<Allele> readLikelihoods = createReadLikelihoods(depth, alleleFraction, altF1R2Fraction,
                 alleles, genotypeBuilder);
         genotypeBuilder.alleles(alleles);
-        annotation.annotate(ref, vc, genotypeBuilder.make(), genotypeBuilder, readLikelihoods);
+        annotation.annotate(reference, vc, genotypeBuilder.make(), genotypeBuilder, readLikelihoods);
 
         final Genotype genotype = genotypeBuilder.make();
         final double[] posteriorProbabilities =

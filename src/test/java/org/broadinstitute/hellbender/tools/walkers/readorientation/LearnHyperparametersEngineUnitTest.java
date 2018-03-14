@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.MAX_REF_DEPTH;
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.REGULAR_BASES;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.REGULAR_BASES;
 
 /**R
  * Created by tsato on 8/14/17.

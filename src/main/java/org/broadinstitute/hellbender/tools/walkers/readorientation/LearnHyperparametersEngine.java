@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.MAX_REF_DEPTH;
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.MIDDLE_INDEX;
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.REFERENCE_CONTEXT_SIZE;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.MIDDLE_INDEX;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.REFERENCE_CONTEXT_SIZE;
 
 
 /**

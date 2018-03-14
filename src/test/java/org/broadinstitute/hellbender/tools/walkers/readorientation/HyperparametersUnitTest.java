@@ -1,5 +1,6 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
+import htsjdk.samtools.util.SequenceUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.internal.junit.ArrayAsserts;
@@ -56,4 +57,30 @@ public class HyperparametersUnitTest {
         Assert.assertEquals(hyp3.getNumExamples(), numExamples3);
         Assert.assertEquals(hyp3.getNumAltExamples(), numAltExamples3);
     }
+
+    @Test
+    public void testRevComp() throws IOException {
+        final int numExamples = 1000;
+        final int numAltExamples = 10;
+        final double[] pi = new double[LearnHyperparametersEngine.ArtifactState.values().length];
+        final String context1 = "ACT";
+        final String context2 = "CCC";
+        List<Hyperparameters> hyperparametersBefore = Arrays.asList(
+                new Hyperparameters(context1, pi, numExamples, numAltExamples),
+                new Hyperparameters(context2, pi, numExamples, numAltExamples));
+        final File table = File.createTempFile("hyperparameters", ".tsv");
+
+        Hyperparameters.writeHyperparameters(hyperparametersBefore, table);
+        List<Hyperparameters> hyperparametersAfter = Hyperparameters.readHyperparameters(table);
+        Hyperparameters hypForContext1 = Hyperparameters.searchByContext(hyperparametersAfter, context1).get();
+        Hyperparameters hypForContext1RevComp = Hyperparameters.searchByContext(hyperparametersAfter,
+                SequenceUtil.reverseComplement(context1)).get();
+        Assert.assertEquals(hypForContext1.getReferenceContext(), hypForContext1RevComp.getReferenceContext());
+
+        Hyperparameters hypForContext2 = Hyperparameters.searchByContext(hyperparametersAfter, context2).get();
+        Hyperparameters hypForContext2RevComp = Hyperparameters.searchByContext(hyperparametersAfter,
+                SequenceUtil.reverseComplement(context2)).get();
+        Assert.assertEquals(hypForContext2.getReferenceContext(), hypForContext2RevComp.getReferenceContext());
+    }
+
 }

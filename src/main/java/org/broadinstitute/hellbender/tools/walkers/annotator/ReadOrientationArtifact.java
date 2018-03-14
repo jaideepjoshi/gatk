@@ -22,8 +22,8 @@ import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import java.io.File;
 import java.util.*;
 
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.REF_CONTEXT_PADDING_ON_EACH_SIDE;
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.REGULAR_BASES;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.REF_CONTEXT_PADDING_ON_EACH_SIDE;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.REGULAR_BASES;
 
 /**
  * Created by tsato on 10/20/17.
@@ -128,25 +128,21 @@ public class ReadOrientationArtifact extends GenotypeAnnotation implements Stand
             }
         }
 
-        final List<Hyperparameters> hyperparametersForReadOrientaitonModel =
+        final List<Hyperparameters> hyperparameters =
                 Hyperparameters.readHyperparameters(hyperparameterTable);
 
         final Nucleotide altAllele = Nucleotide.valueOf(vc.getAlternateAllele(0).toString());
 
-        final Optional<Hyperparameters> optionalHyps = hyperparametersForReadOrientaitonModel.stream()
-                .filter(h -> h.getReferenceContext().equals(refContext))
-                .findFirst();
+        final Optional<Hyperparameters> optionalHyps = Hyperparameters.searchByContext(hyperparameters, refContext);
 
         if (! optionalHyps.isPresent()){
             // without the hyperparameters for this particular reference context we cannot compute the posterior probabilities
             return;
         }
-
-        Hyperparameters hyps = optionalHyps.get();
-
+        
         // A by K matrix of prior probabilities over K latent states, given allele a \in A
         // \pi_{ak} is the prior probability of state k given observed allele a.
-        final double[] pi = hyps.getPi();
+        final double[] pi = optionalHyps.get().getPi();
 
         // gather data
         final int depth = (int) MathUtils.sum(baseCounts);

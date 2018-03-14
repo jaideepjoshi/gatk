@@ -4,7 +4,6 @@ import avro.shaded.com.google.common.primitives.Ints;
 import htsjdk.samtools.util.SequenceUtil;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.Nucleotide;
-import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
 import org.broadinstitute.hellbender.utils.tsv.TableColumnCollection;
 import org.broadinstitute.hellbender.utils.tsv.TableReader;
@@ -15,9 +14,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.REGULAR_BASES;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterConstants.REGULAR_BASES;
 
 /**
  * Created by tsato on 10/11/17.

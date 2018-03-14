@@ -10,13 +10,10 @@ import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CoverageAnalysisProgramGroup;
-import org.broadinstitute.hellbender.utils.Utils;
 
 import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.CollectDataForReadOrientationFilter.*;
 
 /**
  * Created by tsato on 10/16/17.
@@ -81,9 +78,9 @@ public class LearnHyperparameters extends CommandLineProgram {
 
         // Since AGT F1R2 is equivalent to ACT F1R2 (in the sense that the order of bases in the original molecule on which
         // the artifact befell and what the base changed to is the same)
-        final List<Hyperparameters> hyperparametersAcrossContexts = new ArrayList<>((int) Math.pow(REGULAR_BASES.size(), REFERENCE_CONTEXT_SIZE)/2);
+        final List<Hyperparameters> hyperparametersAcrossContexts = new ArrayList<>((int) Math.pow(ReadOrientationFilterConstants.REGULAR_BASES.size(), ReadOrientationFilterConstants.REFERENCE_CONTEXT_SIZE)/2);
 
-        for (final String refContext : ALL_KMERS_MODULO_REVERSE_COMPLEMENT){
+        for (final String refContext : ReadOrientationFilterConstants.ALL_KMERS_MODULO_REVERSE_COMPLEMENT){
             final String reverseComplement = SequenceUtil.reverseComplement(refContext);
 
             // Contract: {@code CollectDataForReadOrientationFilter} outputs the ref histogram for all 4^K contexts,
