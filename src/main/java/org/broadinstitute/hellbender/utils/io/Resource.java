@@ -9,6 +9,7 @@ import java.io.InputStream;
 public final class Resource {
     private final String path;
     private final Class<?> relativeClass;
+    public final static String LARGE_RESOURCES_PATH = "large";
 
     /**
      * Create a resource with a path and a relative class.

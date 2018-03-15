@@ -52,6 +52,8 @@ releases of the toolkit.
 ## <a name="requirements">Requirements</a>
 * Java 8
 * Git 2.5 or greater
+* [git-lfs](https://git-lfs.github.com/) 1.1.0 or greater (needed to download large files for runtime resources and the complete test suite).
+  Run `git lfs install` after downloading, followed by `git lfs pull` from the root of your git clone to download the large files. The download is several hundred megabytes.
 * Optional, but recommended:
     * Gradle 3.1 or greater, needed for building the GATK. We recommend using the `./gradlew` script which will
       download and use an appropriate gradle version automatically (see examples below).
@@ -69,8 +71,6 @@ releases of the toolkit.
       [Conda](https://conda.io/docs/user-guide/tasks/manage-environments.html) documentation for
       additional information about using and managing Conda environments.
     * R 3.2.5 (needed for producing plots in certain tools, and for running the test suite)
-    * [git-lfs](https://git-lfs.github.com/) 1.1.0 or greater (needed to download large files for the complete test suite).
-      Run `git lfs install` after downloading, followed by `git lfs pull` from the root of your git clone to download the large files. The download is several hundred megabytes.
 * Alternatively, pre-packaged images with all needed dependencies installed can be found on [our dockerhub repository](https://hub.docker.com/r/broadinstitute/gatk/). This requires a recent version of the docker client, which can be found on the [docker website](https://www.docker.com/get-docker).
 
 ## <a name="quickstart">Quick Start Guide</a>

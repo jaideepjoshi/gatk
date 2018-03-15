@@ -269,8 +269,7 @@ public final class IOUtilsUnitTest extends GATKBaseTest {
 
     @Test
     public void testLoadLargeRuntimeResource() throws IOException {
-        final String largeResourcePath = "large/largeResourceTest.txt";
-        final Resource largeResource = new Resource(largeResourcePath, null);
+        final Resource largeResource = new Resource(Resource.LARGE_RESOURCES_PATH + "/largeResourceTest.txt", null);
         final File resourceFile = IOUtils.writeTempResource(largeResource);
 
         String resourceContents = "";
