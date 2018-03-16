@@ -1,6 +1,7 @@
 # Using OpenJDK 8
 # This Dockerfile does not require any files that are in the GATK4 repo.
-FROM ubuntu:16.04
+# FROM ubuntu:16.04
+FROM maprtech/data-science-refinery:/v1.1_6.0.0_4.1.0_ubuntu16
 
 #### Basic image utilities
 RUN apt-get update && \
